@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { createPatient } from "@/lib/api";
 
 export default function AddPatientPage() {
   const router = useRouter();
@@ -10,15 +11,24 @@ export default function AddPatientPage() {
   const [caregiverName, setCaregiverName] = useState("");
   const [caregiverContact, setCaregiverContact] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setSubmitting(true);
-    // TODO: replace with POST /patient once backend is ready
-    console.log({ name, dob, caregiverName, caregiverContact });
-    setTimeout(() => {
+    setError(null);
+    try {
+      await createPatient({
+        name,
+        dateOfBirth: dob,
+        caregiverName,
+        caregiverContact,
+      });
       router.push("/patients");
-    }, 400);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+      setSubmitting(false);
+    }
   }
 
   return (
@@ -27,6 +37,12 @@ export default function AddPatientPage() {
       <p className="text-slate-500 mt-1">
         Enter basic patient and caregiver details.
       </p>
+
+      {error && (
+        <div className="mt-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+          Something went wrong: {error}
+        </div>
+      )}
 
       <form
         onSubmit={handleSubmit}
