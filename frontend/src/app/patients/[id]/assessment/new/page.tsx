@@ -1,11 +1,16 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { BEHAVIOURS } from "@/lib/behaviours";
-import { mockPatients } from "@/lib/mock-data";
-import { BehaviourResult } from "@/types";
+import { BehaviourResult, Patient } from "@/types";
+import { getPatient, createAssessment } from "@/lib/api";
+
+// TODO(backend): AssessmentCreate.therapist_id is required, but there's no
+// auth/session yet to derive a real value from. Using a placeholder until
+// the backend owner confirms a real therapist_id (or makes it optional).
+const PLACEHOLDER_THERAPIST_ID = "00000000-0000-0000-0000-000000000000";
 
 interface ScoreRow {
   behaviour: string;
@@ -20,12 +25,36 @@ export default function NewAssessmentPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const patient = mockPatients.find((p) => p.id === id);
+
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [loadingPatient, setLoadingPatient] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const [scores, setScores] = useState<ScoreRow[]>(
     BEHAVIOURS.map((b) => ({ behaviour: b, result: "unscored", notes: "" }))
   );
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    getPatient(id)
+      .then((p) => {
+        if (!cancelled) setPatient(p);
+      })
+      .catch((err) => {
+        if (!cancelled)
+          setLoadError(
+            err instanceof Error ? err.message : "Something went wrong."
+          );
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPatient(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
 
   function setResult(index: number, result: BehaviourResult) {
     setScores((prev) =>
@@ -41,16 +70,42 @@ export default function NewAssessmentPage({
 
   const allScored = scores.every((s) => s.result !== "unscored");
 
-function handleSubmit() {
+  async function handleSubmit() {
     setSubmitting(true);
-    // TODO: replace with POST /assessment once backend is ready
-    sessionStorage.setItem(`cat-scores-${id}`, JSON.stringify(scores));
-    setTimeout(() => {
+    setSubmitError(null);
+    try {
+      const assessment = await createAssessment({
+        patientId: id,
+        therapistId: PLACEHOLDER_THERAPIST_ID,
+        assessmentDate: new Date().toISOString().slice(0, 10),
+        scores: scores.map((s) => ({
+          behaviour: s.behaviour,
+          result: s.result,
+          notes: s.notes,
+        })),
+      });
+      // Kept for the AI Report page, which still reads from sessionStorage.
+      sessionStorage.setItem(`cat-scores-${id}`, JSON.stringify(scores));
+      sessionStorage.setItem(`cat-assessment-id-${id}`, assessment.id);
       router.push(`/patients/${id}/report`);
-    }, 400);
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : "Something went wrong."
+      );
+      setSubmitting(false);
+    }
   }
-  if (!patient) {
-    return <p className="text-slate-500">Patient not found.</p>;
+
+  if (loadingPatient) {
+    return <p className="text-slate-500">Loading...</p>;
+  }
+
+  if (loadError || !patient) {
+    return (
+      <p className="text-red-600">
+        Something went wrong: {loadError ?? "Patient not found."}
+      </p>
+    );
   }
 
   return (
@@ -68,6 +123,12 @@ function handleSubmit() {
       <p className="text-slate-500 mt-1">
         Score each behaviour as Present or Absent. Notes are optional.
       </p>
+
+      {submitError && (
+        <div className="mt-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+          Something went wrong: {submitError}
+        </div>
+      )}
 
       <div className="mt-6 space-y-3">
         {scores.map((row, i) => (

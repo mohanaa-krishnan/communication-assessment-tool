@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { mockPatients, mockAssessments } from "@/lib/mock-data";
+import { getPatient, getPatientAssessments, ApiError } from "@/lib/api";
 
 export default async function PatientProfilePage({
   params,
@@ -8,10 +8,26 @@ export default async function PatientProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const patient = mockPatients.find((p) => p.id === id);
-  if (!patient) return notFound();
 
-  const assessments = mockAssessments.filter((a) => a.patientId === id);
+  let patient;
+  try {
+    patient = await getPatient(id);
+  } catch (err) {
+    if (err instanceof ApiError && err.status === 404) return notFound();
+    return (
+      <p className="text-red-600">
+        Something went wrong loading this patient.
+      </p>
+    );
+  }
+
+  let assessments: Awaited<ReturnType<typeof getPatientAssessments>> = [];
+  let assessmentsError = false;
+  try {
+    assessments = await getPatientAssessments(id);
+  } catch {
+    assessmentsError = true;
+  }
 
   return (
     <div className="max-w-3xl">
@@ -24,7 +40,7 @@ export default async function PatientProfilePage({
           <h1 className="text-2xl font-bold text-slate-900">{patient.name}</h1>
           <p className="text-slate-500 mt-1">DOB: {patient.dateOfBirth}</p>
         </div>
-    <div className="flex gap-2">
+        <div className="flex gap-2">
           <Link
             href={`/patients/${patient.id}/vr-assessment`}
             className="bg-white text-slate-700 text-sm font-medium px-4 py-2 rounded-md border border-slate-300 hover:bg-slate-50"
@@ -63,7 +79,12 @@ export default async function PatientProfilePage({
         Assessment History
       </h2>
       <div className="mt-3 bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
-        {assessments.length === 0 && (
+        {assessmentsError && (
+          <p className="px-5 py-4 text-sm text-red-600">
+            Something went wrong loading assessments.
+          </p>
+        )}
+        {!assessmentsError && assessments.length === 0 && (
           <p className="px-5 py-4 text-sm text-slate-500">
             No assessments yet.
           </p>
