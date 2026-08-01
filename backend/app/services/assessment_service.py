@@ -63,3 +63,61 @@ def list_patient_assessments(patient_id: str):
         .execute()
     )
     return response.data
+def get_communication_profile(patient_id: str):
+    patient_response = (
+        supabase.table("patients")
+        .select("*")
+        .eq("id", patient_id)
+        .single()
+        .execute()
+    )
+    patient = patient_response.data
+    if not patient:
+        return None
+
+    assessments_response = (
+        supabase.table("assessments")
+        .select("*")
+        .eq("patient_id", patient_id)
+        .eq("status", "approved")
+        .order("assessment_date", desc=False)
+        .execute()
+    )
+    approved_assessments = assessments_response.data
+
+    trend = []
+    for assessment in approved_assessments:
+        scores_response = (
+            supabase.table("behaviour_scores")
+            .select("status")
+            .eq("assessment_id", assessment["id"])
+            .execute()
+        )
+        present_count = sum(
+            1 for s in scores_response.data if s["status"] == "Present"
+        )
+        trend.append(
+            {
+                "assessment_id": assessment["id"],
+                "assessment_date": assessment["assessment_date"],
+                "present_count": present_count,
+                "total_behaviours": len(scores_response.data),
+            }
+        )
+
+    return {
+        "patient": patient,
+        "approved_assessments": approved_assessments,
+        "trend": trend,
+    }
+
+
+def get_patient_timeline(patient_id: str):
+    response = (
+        supabase.table("assessments")
+        .select("id, assessment_date, status")
+        .eq("patient_id", patient_id)
+        .order("assessment_date", desc=True)
+        .execute()
+    )
+    return response.data
