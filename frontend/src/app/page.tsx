@@ -1,14 +1,27 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { mockPatients, mockAssessments } from "@/lib/mock-data";
+import { getPatients } from "@/lib/api";
+import { Patient } from "@/types";
 
 export default function DashboardPage() {
-  const totalPatients = mockPatients.length;
-  const approvedReports = mockAssessments.filter(
-    (a) => a.status === "approved"
-  ).length;
-  const pendingReports = mockAssessments.filter(
-    (a) => a.status === "draft"
-  ).length;
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    getPatients()
+      .then(setPatients)
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
+      .finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return <p className="text-slate-500">Loading...</p>;
+  if (error)
+    return <p className="text-red-600">Something went wrong: {error}</p>;
 
   return (
     <div className="max-w-5xl">
@@ -21,20 +34,18 @@ export default function DashboardPage() {
         <div className="bg-white border border-slate-200 rounded-lg p-5">
           <p className="text-sm text-slate-500">Total Patients</p>
           <p className="text-3xl font-bold text-slate-900 mt-1">
-            {totalPatients}
+            {patients.length}
           </p>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-5">
-          <p className="text-sm text-slate-500">Approved Reports</p>
+          <p className="text-sm text-slate-500">Recent Additions</p>
           <p className="text-3xl font-bold text-emerald-600 mt-1">
-            {approvedReports}
+            {patients.length}
           </p>
         </div>
         <div className="bg-white border border-slate-200 rounded-lg p-5">
-          <p className="text-sm text-slate-500">Pending Review</p>
-          <p className="text-3xl font-bold text-amber-600 mt-1">
-            {pendingReports}
-          </p>
+          <p className="text-sm text-slate-500">Status</p>
+          <p className="text-3xl font-bold text-blue-600 mt-1">Live</p>
         </div>
       </div>
 
@@ -51,7 +62,12 @@ export default function DashboardPage() {
       </div>
 
       <div className="mt-3 bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
-        {mockPatients.map((p) => (
+        {patients.length === 0 && (
+          <p className="px-5 py-4 text-sm text-slate-500">
+            No patients yet.
+          </p>
+        )}
+        {patients.map((p) => (
           <Link
             key={p.id}
             href={`/patients/${p.id}`}

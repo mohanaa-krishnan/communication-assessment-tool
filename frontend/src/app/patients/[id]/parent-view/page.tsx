@@ -2,7 +2,7 @@
 
 import { use, useEffect, useState } from "react";
 import { mockPatients } from "@/lib/mock-data";
-import { ReportContent } from "@/lib/mock-report";
+import { ReportContent } from "@/lib/generate-mock-report";
 
 export default function ParentViewPage({
   params,
@@ -18,7 +18,7 @@ export default function ParentViewPage({
     // row via GET, not sessionStorage. Kept simple for demo continuity.
     const raw = sessionStorage.getItem(`cat-scores-${id}`);
     if (raw) {
-      import("@/lib/mock-report").then(({ generateMockReport }) => {
+      import("@/lib/generate-mock-report").then(({ generateMockReport }) => {
         setReport(generateMockReport(patient?.name ?? "", JSON.parse(raw)));
       });
     }

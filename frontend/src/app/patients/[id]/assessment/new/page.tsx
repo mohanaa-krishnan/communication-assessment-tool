@@ -10,7 +10,7 @@ import { getPatient, createAssessment } from "@/lib/api";
 // TODO(backend): AssessmentCreate.therapist_id is required, but there's no
 // auth/session yet to derive a real value from. Using a placeholder until
 // the backend owner confirms a real therapist_id (or makes it optional).
-const PLACEHOLDER_THERAPIST_ID = "00000000-0000-0000-0000-000000000000";
+const PLACEHOLDER_THERAPIST_ID = "4b3ef53f-b585-4652-adb7-0e6fa7a2ac5d";
 
 interface ScoreRow {
   behaviour: string;

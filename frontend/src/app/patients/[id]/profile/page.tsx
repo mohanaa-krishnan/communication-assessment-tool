@@ -1,6 +1,6 @@
 "use client";
 
-import { use } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   LineChart,
@@ -11,8 +11,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { mockPatients, mockAssessments } from "@/lib/mock-data";
-import { mockTrend, mockRecommendations } from "@/lib/mock-profile";
+import { getCommunicationProfile, CommunicationProfile } from "@/lib/api";
 
 export default function CommunicationProfilePage({
   params,
@@ -20,14 +19,28 @@ export default function CommunicationProfilePage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const patient = mockPatients.find((p) => p.id === id);
-  const assessments = mockAssessments.filter((a) => a.patientId === id);
-  const trend = mockTrend[id] ?? [];
-  const recommendations = mockRecommendations[id] ?? [];
+  const [profile, setProfile] = useState<CommunicationProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  if (!patient) {
-    return <p className="text-slate-500">Patient not found.</p>;
-  }
+  useEffect(() => {
+    getCommunicationProfile(id)
+      .then(setProfile)
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return <p className="text-slate-500">Loading...</p>;
+  if (error || !profile)
+    return (
+      <p className="text-red-600">
+        Something went wrong: {error ?? "Patient not found."}
+      </p>
+    );
+
+  const { patient, approvedAssessments, trend } = profile;
 
   return (
     <div className="max-w-3xl">
@@ -67,40 +80,32 @@ export default function CommunicationProfilePage({
           </ResponsiveContainer>
         ) : (
           <p className="text-sm text-slate-500">
-            Not enough data yet — trends appear after 2+ assessments.
+            No approved assessments yet — trends appear once a therapist
+            approves at least one report.
           </p>
         )}
       </div>
 
       <h2 className="mt-8 text-lg font-semibold text-slate-900">
-        Assessment Timeline
+        Approved Assessment Timeline
       </h2>
       <div className="mt-3 bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
-        {assessments.map((a) => (
-          <div key={a.id} className="px-5 py-4 flex items-center justify-between">
+        {approvedAssessments.length === 0 && (
+          <p className="px-5 py-4 text-sm text-slate-500">
+            No approved assessments yet.
+          </p>
+        )}
+        {approvedAssessments.map((a) => (
+          <div
+            key={a.id}
+            className="flex items-center justify-between px-5 py-4"
+          >
             <p className="font-medium text-slate-900">{a.assessmentDate}</p>
-            <span
-              className={`text-xs font-medium px-2 py-1 rounded-full ${
-                a.status === "approved"
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-amber-100 text-amber-700"
-              }`}
-            >
-              {a.status}
+            <span className="text-xs font-medium px-2 py-1 rounded-full bg-emerald-100 text-emerald-700">
+              approved
             </span>
           </div>
         ))}
-      </div>
-
-      <h2 className="mt-8 text-lg font-semibold text-slate-900">
-        Therapy Recommendations
-      </h2>
-      <div className="mt-3 bg-white border border-slate-200 rounded-lg p-5">
-        <ul className="list-disc list-inside space-y-2 text-sm text-slate-700">
-          {recommendations.map((r, i) => (
-            <li key={i}>{r}</li>
-          ))}
-        </ul>
       </div>
     </div>
   );

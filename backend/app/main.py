@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from app.database.supabase import supabase
 from app.api import patients, assessments
 from app.api.ai_reports import router as ai_reports_router
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI(
     title="Communication Assessment Tool API",
@@ -27,3 +28,13 @@ def test_database():
         "status": "Connected Successfully",
         "patients": response.data
     }
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+    ],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)

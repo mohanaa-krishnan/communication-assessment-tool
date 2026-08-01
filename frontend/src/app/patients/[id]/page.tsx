@@ -1,115 +1,99 @@
-import Link from "next/link";
-import { notFound } from "next/navigation";
-import { getPatient, getPatientAssessments, ApiError } from "@/lib/api";
+"use client";
 
-export default async function PatientProfilePage({
+import { use, useEffect, useState } from "react";
+import Link from "next/link";
+import { getPatient } from "@/lib/api";
+import { Patient } from "@/types";
+
+const steps = [
+  { label: "Teacher greets the patient", icon: "👋" },
+  { label: "Teacher points to objects", icon: "👉" },
+  { label: "Patient responds", icon: "🗣️" },
+  { label: "Therapist scores Present / Absent", icon: "✅" },
+];
+
+export default function VrAssessmentStub({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const { id } = await params;
+  const { id } = use(params);
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [activeStep, setActiveStep] = useState(0);
 
-  let patient;
-  try {
-    patient = await getPatient(id);
-  } catch (err) {
-    if (err instanceof ApiError && err.status === 404) return notFound();
+  useEffect(() => {
+    getPatient(id)
+      .then(setPatient)
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) return <p className="text-slate-500">Loading...</p>;
+  if (error || !patient)
     return (
       <p className="text-red-600">
-        Something went wrong loading this patient.
+        Something went wrong: {error ?? "Patient not found."}
       </p>
     );
-  }
-
-  let assessments: Awaited<ReturnType<typeof getPatientAssessments>> = [];
-  let assessmentsError = false;
-  try {
-    assessments = await getPatientAssessments(id);
-  } catch {
-    assessmentsError = true;
-  }
 
   return (
-    <div className="max-w-3xl">
-      <Link href="/patients" className="text-sm text-blue-600 hover:underline">
-        ← Back to Patients
+    <div className="max-w-2xl">
+      <Link
+        href={`/patients/${id}`}
+        className="text-sm text-blue-600 hover:underline"
+      >
+        ← Back to {patient.name}
       </Link>
 
-      <div className="mt-3 flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">{patient.name}</h1>
-          <p className="text-slate-500 mt-1">DOB: {patient.dateOfBirth}</p>
-        </div>
-        <div className="flex gap-2">
-          <Link
-            href={`/patients/${patient.id}/vr-assessment`}
-            className="bg-white text-slate-700 text-sm font-medium px-4 py-2 rounded-md border border-slate-300 hover:bg-slate-50"
-          >
-            VR Assessment
-          </Link>
-          <Link
-            href={`/patients/${patient.id}/profile`}
-            className="bg-white text-slate-700 text-sm font-medium px-4 py-2 rounded-md border border-slate-300 hover:bg-slate-50"
-          >
-            View Intelligence Profile
-          </Link>
-          <Link
-            href={`/patients/${patient.id}/assessment/new`}
+      <h1 className="text-2xl font-bold text-slate-900 mt-3">
+        Browser VR Assessment
+      </h1>
+      <p className="text-slate-500 mt-1">
+        Virtual Classroom scenario — standardizes how behaviours are elicited.
+        No headset required.
+      </p>
+
+      <div className="mt-6 bg-slate-900 text-white rounded-lg aspect-video flex flex-col items-center justify-center text-center p-8">
+        <p className="text-5xl mb-4">{steps[activeStep].icon}</p>
+        <p className="text-lg font-medium">{steps[activeStep].label}</p>
+        <p className="text-slate-400 text-sm mt-2">
+          Step {activeStep + 1} of {steps.length}
+        </p>
+      </div>
+
+      <div className="mt-4 flex justify-between">
+        <button
+          onClick={() => setActiveStep((s) => Math.max(0, s - 1))}
+          disabled={activeStep === 0}
+          className="text-sm font-medium px-4 py-2 rounded-md border border-slate-300 disabled:opacity-40"
+        >
+          ← Previous
+        </button>
+        {activeStep < steps.length - 1 ? (
+          <button
+            onClick={() => setActiveStep((s) => s + 1)}
             className="bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-blue-700"
           >
-            + Start Assessment
-          </Link>
-        </div>
-      </div>
-
-      <div className="mt-6 bg-white border border-slate-200 rounded-lg p-5 grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <p className="text-slate-500">Caregiver</p>
-          <p className="font-medium text-slate-900">{patient.caregiverName}</p>
-        </div>
-        <div>
-          <p className="text-slate-500">Contact</p>
-          <p className="font-medium text-slate-900">
-            {patient.caregiverContact}
-          </p>
-        </div>
-      </div>
-
-      <h2 className="mt-8 text-lg font-semibold text-slate-900">
-        Assessment History
-      </h2>
-      <div className="mt-3 bg-white border border-slate-200 rounded-lg divide-y divide-slate-100">
-        {assessmentsError && (
-          <p className="px-5 py-4 text-sm text-red-600">
-            Something went wrong loading assessments.
-          </p>
-        )}
-        {!assessmentsError && assessments.length === 0 && (
-          <p className="px-5 py-4 text-sm text-slate-500">
-            No assessments yet.
-          </p>
-        )}
-        {assessments.map((a) => (
-          <div
-            key={a.id}
-            className="flex items-center justify-between px-5 py-4"
+            Next Step →
+          </button>
+        ) : (
+          <Link
+            href={`/patients/${id}/assessment/new`}
+            className="bg-emerald-600 text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-emerald-700"
           >
-            <div>
-              <p className="font-medium text-slate-900">{a.assessmentDate}</p>
-              <p className="text-sm text-slate-500 capitalize">{a.status}</p>
-            </div>
-            <span
-              className={`text-xs font-medium px-2 py-1 rounded-full ${
-                a.status === "approved"
-                  ? "bg-emerald-100 text-emerald-700"
-                  : "bg-amber-100 text-amber-700"
-              }`}
-            >
-              {a.status}
-            </span>
-          </div>
-        ))}
+            Score This Session →
+          </Link>
+        )}
       </div>
+
+      <p className="mt-4 text-xs text-slate-400">
+        MVP note: this is a simplified browser walkthrough for demo purposes.
+        The full build renders an interactive Three.js classroom scene.
+      </p>
     </div>
   );
 }

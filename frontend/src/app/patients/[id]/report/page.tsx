@@ -3,12 +3,12 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { mockPatients } from "@/lib/mock-data";
-import { BehaviourScore } from "@/types";
+import { getPatient } from "@/lib/api";
+import { Patient, BehaviourScore } from "@/types";
 import {
   generateMockReport,
   ReportContent,
-} from "@/lib/mock-report";
+} from "@/lib/generate-mock-report";
 
 export default function ReportPage({
   params,
@@ -17,30 +17,45 @@ export default function ReportPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const patient = mockPatients.find((p) => p.id === id);
 
+  const [patient, setPatient] = useState<Patient | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<ReportContent | null>(null);
   const [approved, setApproved] = useState(false);
 
   useEffect(() => {
-    if (!patient) return;
-    const raw = sessionStorage.getItem(`cat-scores-${id}`);
-    const scores: BehaviourScore[] = raw
-      ? JSON.parse(raw)
-      : []; // no scores found — therapist should redo the assessment
-    setReport(generateMockReport(patient.name, scores));
-  }, [id, patient]);
+    getPatient(id)
+      .then((p) => {
+        setPatient(p);
+        const raw = sessionStorage.getItem(`cat-scores-${id}`);
+        const scores: BehaviourScore[] = raw ? JSON.parse(raw) : [];
+        setReport(generateMockReport(p.name, scores));
+      })
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
+      .finally(() => setLoading(false));
+  }, [id]);
 
   function handleApprove() {
-    // TODO: replace with POST that saves clinical_reports + parent_summaries
+    // TODO: no backend endpoint yet to flip assessment status to "approved".
+    // Right now this only updates the UI — it does NOT persist to Supabase.
+    // The Communication Intelligence Profile chart will not reflect this
+    // approval until a PATCH /assessments/{id}/approve endpoint exists.
     setApproved(true);
     setTimeout(() => {
       router.push(`/patients/${id}/profile`);
     }, 700);
   }
 
-  if (!patient) return <p className="text-slate-500">Patient not found.</p>;
-  if (!report) return <p className="text-slate-500">Generating report...</p>;
+  if (loading) return <p className="text-slate-500">Loading...</p>;
+  if (error || !patient || !report)
+    return (
+      <p className="text-red-600">
+        Something went wrong: {error ?? "Patient not found."}
+      </p>
+    );
 
   return (
     <div className="max-w-3xl">

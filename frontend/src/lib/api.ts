@@ -260,3 +260,67 @@ export async function getPatientAssessments(
   );
   return data.map(assessmentFromApi);
 }
+// ---------------------------------------------------------------------------
+// Communication Intelligence Profile — GET /communication-profile, /timeline
+// ---------------------------------------------------------------------------
+
+interface ApiTrendPoint {
+  assessment_id: string;
+  assessment_date: string;
+  present_count: number;
+  total_behaviours: number;
+}
+
+interface ApiCommunicationProfile {
+  patient: ApiPatient;
+  approved_assessments: ApiAssessment[];
+  trend: ApiTrendPoint[];
+}
+
+interface ApiTimelineEntry {
+  id: string;
+  assessment_date: string;
+  status: string;
+}
+
+export interface TrendPoint {
+  date: string;
+  presentCount: number;
+  totalBehaviours: number;
+}
+
+export interface CommunicationProfile {
+  patient: Patient;
+  approvedAssessments: Assessment[];
+  trend: TrendPoint[];
+}
+
+export async function getCommunicationProfile(
+  patientId: string
+): Promise<CommunicationProfile> {
+  const data = await request<ApiCommunicationProfile>(
+    `/communication-profile?patient_id=${patientId}`
+  );
+  return {
+    patient: patientFromApi(data.patient),
+    approvedAssessments: data.approved_assessments.map(assessmentFromApi),
+    trend: data.trend.map((t) => ({
+      date: t.assessment_date,
+      presentCount: t.present_count,
+      totalBehaviours: t.total_behaviours,
+    })),
+  };
+}
+
+export async function getTimeline(
+  patientId: string
+): Promise<{ id: string; date: string; status: string }[]> {
+  const data = await request<ApiTimelineEntry[]>(
+    `/timeline?patient_id=${patientId}`
+  );
+  return data.map((t) => ({
+    id: t.id,
+    date: t.assessment_date,
+    status: t.status,
+  }));
+}
