@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from app.schemas.patient import PatientCreate, PatientUpdate, PatientOut
 from app.services import patient_service
+from app.database.supabase import supabase
+from app.models.patients import PatientCreate
 
 router = APIRouter(prefix="/patients", tags=["patients"])
 
@@ -18,9 +20,19 @@ def get_one_patient(patient_id: str):
     return patient
 
 
-@router.post("/", status_code=201)
-def create_new_patient(patient: PatientCreate):
-    return patient_service.create_patient(patient)
+
+
+@router.post("/")
+def create_patient(patient: PatientCreate):
+
+    response = (
+        supabase
+        .table("patients")
+        .insert(patient.model_dump())
+        .execute()
+    )
+
+    return response.data
 
 
 @router.put("/{patient_id}")

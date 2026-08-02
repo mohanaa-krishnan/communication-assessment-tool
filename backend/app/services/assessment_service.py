@@ -121,3 +121,11 @@ def get_patient_timeline(patient_id: str):
         .execute()
     )
     return response.data
+def approve_assessment(assessment_id: str):
+    response = (
+        supabase.table("assessments")
+        .update({"status": "approved"})
+        .eq("id", assessment_id)
+        .execute()
+    )
+    return response.data[0] if response.data else None

@@ -2,32 +2,73 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { supabase } from "@/lib/supabase";
 
 // Demo patient used for the Parent role — replace once parent-patient
 // linking exists. Matches the Test Patient we've been using throughout.
-const DEMO_PARENT_PATIENT_ID = "ae5e3c4c-f1d7-49d4-ac8c-67bbb92cff83";
+
 
 export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [role, setRole] = useState<"therapist" | "parent">("therapist");
+ 
   const [submitting, setSubmitting] = useState(false);
 
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSubmitting(true);
-    // NOTE: cosmetic only — no real authentication yet. Credentials are
-    // not validated. This screen exists to demonstrate the intended
-    // role-based flow (Therapist vs Parent/Caregiver).
-    setTimeout(() => {
-      if (role === "therapist") {
-        router.push("/");
-      } else {
-        router.push(`/patients/${DEMO_PARENT_PATIENT_ID}/parent-view`);
-      }
-    }, 500);
+ async function handleSubmit(e: React.FormEvent) {
+  e.preventDefault();
+  setSubmitting(true);
+
+  const { error } = await supabase.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  if (error) {
+    alert(error.message);
+    setSubmitting(false);
+    return;
   }
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    alert("Unable to retrieve user.");
+    setSubmitting(false);
+    return;
+  }
+
+  // Therapist?
+  const { data: therapist } = await supabase
+    .from("therapists")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  if (therapist) {
+    router.push("/");
+    return;
+  }
+
+  // Parent?
+  const { data: parent } = await supabase
+    .from("parents")
+    .select("id")
+    .eq("auth_user_id", user.id)
+    .maybeSingle();
+
+  if (parent) {
+    router.push("/parent");
+    return;
+  }
+
+  // Unknown account
+  await supabase.auth.signOut();
+  alert("Your account has not been registered.");
+  setSubmitting(false);
+}
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50">
@@ -42,30 +83,7 @@ export default function LoginPage() {
         </div>
 
         <div className="bg-white border border-slate-200 rounded-lg p-6">
-          <div className="flex mb-5 border border-slate-200 rounded-md overflow-hidden">
-            <button
-              type="button"
-              onClick={() => setRole("therapist")}
-              className={`flex-1 text-sm font-medium py-2 ${
-                role === "therapist"
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              Therapist
-            </button>
-            <button
-              type="button"
-              onClick={() => setRole("parent")}
-              className={`flex-1 text-sm font-medium py-2 ${
-                role === "parent"
-                  ? "bg-blue-600 text-white"
-                  : "bg-white text-slate-600 hover:bg-slate-50"
-              }`}
-            >
-              Parent / Caregiver
-            </button>
-          </div>
+          
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -95,14 +113,12 @@ export default function LoginPage() {
               />
             </div>
             <button
-              type="submit"
-              disabled={submitting}
-              className="w-full bg-blue-600 text-white text-sm font-medium py-2.5 rounded-md hover:bg-blue-700 disabled:opacity-50"
-            >
-              {submitting
-                ? "Signing in..."
-                : `Sign in as ${role === "therapist" ? "Therapist" : "Parent"}`}
-            </button>
+  type="submit"
+  disabled={submitting}
+  className="w-full bg-blue-600 text-white text-sm font-medium py-2.5 rounded-md hover:bg-blue-700 disabled:opacity-50"
+>
+  {submitting ? "Signing in..." : "Sign In"}
+</button>
           </form>
         </div>
 

@@ -1,4 +1,4 @@
-export type BehaviourResult = "present" | "absent" | "unscored";
+export type BehaviourResult = "present" | "sometimes" | "absent" | "unscored";
 
 export interface BehaviourScore {
   behaviour: string;

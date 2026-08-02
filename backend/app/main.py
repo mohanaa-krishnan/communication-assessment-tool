@@ -1,8 +1,9 @@
 from fastapi import FastAPI
 from app.database.supabase import supabase
-from app.api import patients, assessments
+from app.api import patients, assessments,parents
 from app.api.ai_reports import router as ai_reports_router
 from fastapi.middleware.cors import CORSMiddleware
+from app.api import parent_dashboard
 
 app = FastAPI(
     title="Communication Assessment Tool API",
@@ -12,8 +13,8 @@ app = FastAPI(
 app.include_router(patients.router)
 app.include_router(assessments.router)
 app.include_router(ai_reports_router)
-
-
+app.include_router(parents.router)
+app.include_router(parent_dashboard.router)
 @app.get("/")
 def root():
     return {

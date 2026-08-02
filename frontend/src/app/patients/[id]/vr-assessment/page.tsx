@@ -1,8 +1,9 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
-import { mockPatients } from "@/lib/mock-data";
+import { getPatient } from "@/lib/api";
+import { Patient } from "@/types";
 
 const steps = [
   { label: "Teacher greets the patient", icon: "👋" },
@@ -17,10 +18,22 @@ export default function VrAssessmentStub({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const patient = mockPatients.find((p) => p.id === id);
-  const [activeStep, setActiveStep] = useState(0);
+ const [patient, setPatient] = useState<Patient | null>(null);
+const [activeStep, setActiveStep] = useState(0);
+const [loading, setLoading] = useState(true);
 
-  if (!patient) return <p className="text-slate-500">Patient not found.</p>;
+useEffect(() => {
+  getPatient(id)
+    .then(setPatient)
+    .catch((err) => console.error(err))
+    .finally(() => setLoading(false));
+}, [id]);
+
+if (loading)
+  return <p className="text-slate-500">Loading patient...</p>;
+
+if (!patient)
+  return <p className="text-slate-500">Patient not found.</p>;
 
   return (
     <div className="max-w-2xl">

@@ -1,5 +1,7 @@
 import Link from "next/link";
+
 import { getPatients } from "@/lib/api";
+
 
 export default async function PatientListPage() {
   let patients: Awaited<ReturnType<typeof getPatients>> = [];

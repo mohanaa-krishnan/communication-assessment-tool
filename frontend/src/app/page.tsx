@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { getPatients } from "@/lib/api";
 import { Patient } from "@/types";
-
+import AuthGuard from "@/components/Authguard";
 export default function DashboardPage() {
   const [patients, setPatients] = useState<Patient[]>([]);
   const [loading, setLoading] = useState(true);
@@ -24,6 +24,7 @@ export default function DashboardPage() {
     return <p className="text-red-600">Something went wrong: {error}</p>;
 
   return (
+    <AuthGuard>
     <div className="max-w-5xl">
       <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
       <p className="text-slate-500 mt-1">
@@ -82,5 +83,6 @@ export default function DashboardPage() {
         ))}
       </div>
     </div>
+    </AuthGuard>
   );
 }

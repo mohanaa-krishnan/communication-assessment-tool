@@ -3,12 +3,19 @@
 import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getPatient } from "@/lib/api";
-import { Patient, BehaviourScore } from "@/types";
+import { getPatient, getPatientAssessments, getAssessment, approveAssessment } from "@/lib/api";
+import { Patient, BehaviourScore, Assessment, BehaviourResult } from "@/types";
 import {
   generateMockReport,
   ReportContent,
 } from "@/lib/generate-mock-report";
+
+interface DiffRow {
+  behaviour: string;
+  previous: BehaviourResult | null;
+  current: BehaviourResult;
+  change: "improved" | "declined" | "same" | "new";
+}
 
 export default function ReportPage({
   params,
@@ -23,30 +30,74 @@ export default function ReportPage({
   const [error, setError] = useState<string | null>(null);
   const [report, setReport] = useState<ReportContent | null>(null);
   const [approved, setApproved] = useState(false);
+  const [diffRows, setDiffRows] = useState<DiffRow[]>([]);
+  const [previousAssessment, setPreviousAssessment] = useState<Assessment | null>(null);
 
   useEffect(() => {
-    getPatient(id)
-      .then((p) => {
+    async function load() {
+      try {
+        const p = await getPatient(id);
         setPatient(p);
+
         const raw = sessionStorage.getItem(`cat-scores-${id}`);
-        const scores: BehaviourScore[] = raw ? JSON.parse(raw) : [];
-        setReport(generateMockReport(p.name, scores));
-      })
-      .catch((err) =>
-        setError(err instanceof Error ? err.message : "Something went wrong.")
-      )
-      .finally(() => setLoading(false));
+        const currentScores: BehaviourScore[] = raw ? JSON.parse(raw) : [];
+        setReport(generateMockReport(p.name, currentScores));
+
+        const currentAssessmentId = sessionStorage.getItem(`cat-assessment-id-${id}`);
+        const allAssessments = await getPatientAssessments(id);
+        const previousApproved = allAssessments
+          .filter((a) => a.status === "approved" && a.id !== currentAssessmentId)
+          .sort((a, b) => (a.assessmentDate < b.assessmentDate ? 1 : -1))[0];
+
+        if (previousApproved) {
+          const fullPrevious = await getAssessment(previousApproved.id);
+          setPreviousAssessment(fullPrevious);
+
+          const rows: DiffRow[] = currentScores.map((cur) => {
+            const prevScore = fullPrevious.scores.find(
+              (s) => s.behaviour === cur.behaviour
+            );
+            const prevResult = prevScore ? prevScore.result : null;
+            let change: DiffRow["change"] = "new";
+            if (prevResult) {
+              if (prevResult === cur.result) change = "same";
+              else if (prevResult === "absent" && cur.result === "present")
+                change = "improved";
+              else change = "declined";
+            }
+            return {
+              behaviour: cur.behaviour,
+              previous: prevResult,
+              current: cur.result,
+              change,
+            };
+          });
+          setDiffRows(rows);
+        }
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    load();
   }, [id]);
 
-  function handleApprove() {
-    // TODO: no backend endpoint yet to flip assessment status to "approved".
-    // Right now this only updates the UI — it does NOT persist to Supabase.
-    // The Communication Intelligence Profile chart will not reflect this
-    // approval until a PATCH /assessments/{id}/approve endpoint exists.
-    setApproved(true);
-    setTimeout(() => {
-      router.push(`/patients/${id}/profile`);
-    }, 700);
+  async function handleApprove() {
+    const assessmentId = sessionStorage.getItem(`cat-assessment-id-${id}`);
+    if (!assessmentId) {
+      setError("No assessment found to approve. Please redo the assessment.");
+      return;
+    }
+    try {
+      await approveAssessment(assessmentId);
+      setApproved(true);
+      setTimeout(() => {
+        router.push(`/patients/${id}/profile`);
+      }, 700);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    }
   }
 
   if (loading) return <p className="text-slate-500">Loading...</p>;
@@ -56,6 +107,19 @@ export default function ReportPage({
         Something went wrong: {error ?? "Patient not found."}
       </p>
     );
+
+  const changeStyles: Record<DiffRow["change"], string> = {
+    improved: "bg-emerald-100 text-emerald-700",
+    declined: "bg-red-100 text-red-700",
+    same: "bg-slate-100 text-slate-600",
+    new: "bg-blue-100 text-blue-700",
+  };
+  const changeLabels: Record<DiffRow["change"], string> = {
+    improved: "↑ Improved",
+    declined: "↓ Regressed",
+    same: "No change",
+    new: "First recorded",
+  };
 
   return (
     <div className="max-w-3xl">
@@ -78,6 +142,44 @@ export default function ReportPage({
         Review and edit before approving. Nothing is saved until you approve.
       </p>
 
+      {previousAssessment && diffRows.length > 0 && (
+        <div className="mt-6 bg-white border border-slate-200 rounded-lg p-5">
+          <h2 className="text-sm font-semibold text-slate-700 mb-1">
+            Compared to previous session ({previousAssessment.assessmentDate})
+          </h2>
+          <p className="text-xs text-slate-500 mb-3">
+            Here's what changed since the last approved assessment.
+          </p>
+          <div className="space-y-2">
+            {diffRows.map((row) => (
+              <div
+                key={row.behaviour}
+                className="flex items-center justify-between text-sm py-1.5 border-b border-slate-100 last:border-0"
+              >
+                <span className="text-slate-800">{row.behaviour}</span>
+                <span
+                  className={`text-xs font-medium px-2 py-0.5 rounded-full ${changeStyles[row.change]}`}
+                >
+                  {changeLabels[row.change]}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!previousAssessment && (
+        <div className="mt-6 bg-slate-50 border border-slate-200 rounded-lg p-4 text-sm text-slate-500">
+          No previous approved assessment yet — this will be the baseline for future comparisons.
+        </div>
+      )}
+
+      {error && (
+        <div className="mt-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+          Something went wrong: {error}
+        </div>
+      )}
+
       <div className="mt-6 space-y-5">
         <div className="bg-white border border-slate-200 rounded-lg p-5">
           <label className="block text-sm font-semibold text-slate-700 mb-2">
@@ -95,7 +197,7 @@ export default function ReportPage({
 
         <div className="bg-white border border-slate-200 rounded-lg p-5">
           <label className="block text-sm font-semibold text-slate-700 mb-2">
-            Recommendations
+            Recommendations &amp; Home Activities
           </label>
           <textarea
             value={report.recommendations}

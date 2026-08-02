@@ -3,6 +3,11 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createPatient } from "@/lib/api";
+// TODO(auth): patients.therapist_id is required — every patient belongs to
+// the therapist who manages them, and this links to the same therapist_id
+// used when inviting a parent for that patient. Using a placeholder until
+// real login exists. Must match a real row in the therapists table.
+const PLACEHOLDER_THERAPIST_ID = "4b3ef53f-b585-4652-adb7-0e6fa7a2ac5d";
 
 export default function AddPatientPage() {
   const router = useRouter();
@@ -10,6 +15,8 @@ export default function AddPatientPage() {
   const [dob, setDob] = useState("");
   const [caregiverName, setCaregiverName] = useState("");
   const [caregiverContact, setCaregiverContact] = useState("");
+  const [gender, setGender] = useState("");
+  const [diagnosis, setDiagnosis] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -18,11 +25,14 @@ export default function AddPatientPage() {
     setSubmitting(true);
     setError(null);
     try {
-      await createPatient({
+   await createPatient({
         name,
         dateOfBirth: dob,
         caregiverName,
         caregiverContact,
+        gender: gender || undefined,
+        diagnosis: diagnosis || undefined,
+        therapistId: PLACEHOLDER_THERAPIST_ID,
       });
       router.push("/patients");
     } catch (err) {
@@ -72,6 +82,34 @@ export default function AddPatientPage() {
             value={dob}
             onChange={(e) => setDob(e.target.value)}
             className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Gender <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <select
+            value={gender}
+            onChange={(e) => setGender(e.target.value)}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="">Prefer not to say</option>
+            <option value="Male">Male</option>
+            <option value="Female">Female</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 mb-1">
+            Diagnosis / Clinical Notes <span className="text-slate-400 font-normal">(optional)</span>
+          </label>
+          <input
+            type="text"
+            value={diagnosis}
+            onChange={(e) => setDiagnosis(e.target.value)}
+            className="w-full border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="e.g. ASD, referred by pediatrician"
           />
         </div>
 

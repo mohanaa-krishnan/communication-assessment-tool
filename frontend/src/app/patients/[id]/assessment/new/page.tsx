@@ -121,7 +121,7 @@ export default function NewAssessmentPage({
         New Assessment
       </h1>
       <p className="text-slate-500 mt-1">
-        Score each behaviour as Present or Absent. Notes are optional.
+        Score each behaviour as Present, Sometimes, or Absent. Notes are optional.
       </p>
 
       {submitError && (
@@ -139,6 +139,17 @@ export default function NewAssessmentPage({
             <div className="flex items-center justify-between">
               <p className="font-medium text-slate-900">{row.behaviour}</p>
               <div className="flex gap-2">
+                <button
+  type="button"
+  onClick={() => setResult(i, "sometimes")}
+  className={`text-xs font-medium px-3 py-1.5 rounded-md border ${
+    row.result === "sometimes"
+      ? "bg-yellow-500 text-white border-yellow-500"
+      : "bg-white text-slate-600 border-slate-300 hover:bg-slate-50"
+  }`}
+>
+  Sometimes
+</button>
                 <button
                   type="button"
                   onClick={() => setResult(i, "present")}

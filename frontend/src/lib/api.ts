@@ -77,18 +77,23 @@ function patientFromApi(p: ApiPatient): Patient {
     createdAt: p.created_at ?? "",
   };
 }
-
 function patientToApiCreate(input: {
   name: string;
   dateOfBirth: string;
   caregiverName: string;
   caregiverContact: string;
+  gender?: string;
+  diagnosis?: string;
+  therapistId: string;
 }): ApiPatientCreate {
   return {
     full_name: input.name,
     date_of_birth: input.dateOfBirth,
     caregiver_name: input.caregiverName,
     caregiver_phone: input.caregiverContact,
+    therapist_id: input.therapistId,
+    ...(input.gender ? { gender: input.gender } : {}),
+    ...(input.diagnosis ? { diagnosis: input.diagnosis } : {}),
   };
 }
 
@@ -181,6 +186,9 @@ export async function createPatient(input: {
   dateOfBirth: string;
   caregiverName: string;
   caregiverContact: string;
+  gender?: string;
+  diagnosis?: string;
+  therapistId: string;
 }): Promise<Patient> {
   const data = await request<ApiPatient>("/patients/", {
     method: "POST",
@@ -323,4 +331,53 @@ export async function getTimeline(
     date: t.assessment_date,
     status: t.status,
   }));
+}
+export async function approveAssessment(assessmentId: string): Promise<void> {
+  await request<ApiAssessment>(`/assessments/${assessmentId}/approve`, {
+    method: "PATCH",
+  });
+}
+export async function inviteParent(data: {
+  full_name: string;
+  email: string;
+  phone: string;
+  patient_id: string;
+  invited_by: string;
+}) {
+  const response = await fetch("http://127.0.0.1:8000/parents/", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(error.detail);
+  }
+
+  return response.json();
+}
+export interface ParentDashboard {
+  parent: {
+    id: string;
+    full_name: string;
+    email: string;
+    phone: string;
+  };
+
+  patient: {
+    id: string;
+    full_name: string;
+    date_of_birth: string;
+    caregiver_name: string;
+    caregiver_phone: string;
+  };
+}
+
+export async function getParentDashboard(parentId: string) {
+  return request<ParentDashboard>(
+    `/parent/dashboard/${parentId}`
+  );
 }

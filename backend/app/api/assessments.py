@@ -33,3 +33,9 @@ def communication_profile(patient_id: str):
 @router.get("/timeline")
 def patient_timeline(patient_id: str):
     return get_patient_timeline(patient_id)
+@router.patch("/assessments/{assessment_id}/approve")
+def approve_one_assessment(assessment_id: str):
+    approved = assessment_service.approve_assessment(assessment_id)
+    if not approved:
+        raise HTTPException(status_code=404, detail="Assessment not found")
+    return approved
