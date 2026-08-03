@@ -38,13 +38,23 @@ def create_parent(parent: ParentCreate):
     # Generate temporary password
     temp_password = secrets.token_urlsafe(10)
 
-    # Create Supabase Auth user
-    auth = supabase.auth.admin.create_user({
-        "email": parent.email,
-        "password": temp_password,
-        "email_confirm": True
-    })
-
+  # Create Supabase Auth user
+    try:
+        auth = supabase.auth.admin.create_user({
+            "email": parent.email,
+            "password": temp_password,
+            "email_confirm": True
+        })
+    except Exception as e:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "This email is already registered as an auth account "
+                "(possibly from a deleted parent record). Delete it under "
+                "Supabase Auth > Users before re-inviting, or use a "
+                "different email."
+            ),
+        )
     auth_user = auth.user
 
     # Save parent record
@@ -66,4 +76,56 @@ def create_parent(parent: ParentCreate):
         "message": "Parent invited successfully",
         "temporary_password": temp_password,
         "parent": response.data
+    }
+@router.get("/dashboard")
+def get_parent_dashboard(auth_user_id: str):
+    parent_response = (
+        supabase.table("parents")
+        .select("*")
+        .eq("auth_user_id", auth_user_id)
+        .single()
+        .execute()
+    )
+
+    parent = parent_response.data
+
+    if not parent:
+        raise HTTPException(status_code=404, detail="Parent not found")
+
+    patient_response = (
+        supabase.table("patients")
+        .select("*")
+        .eq("id", parent["patient_id"])
+        .single()
+        .execute()
+    )
+
+    patient = patient_response.data
+
+    if not patient:
+        raise HTTPException(
+            status_code=404,
+            detail="Linked patient not found"
+        )
+
+    report_response = (
+        supabase.table("reports")
+        .select("*")
+        .eq("patient_id", patient["id"])
+        .eq("status", "approved")
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    report = (
+        report_response.data[0]
+        if report_response.data
+        else None
+    )
+
+    return {
+        "parent": parent,
+        "patient": patient,
+        "report": report,
     }

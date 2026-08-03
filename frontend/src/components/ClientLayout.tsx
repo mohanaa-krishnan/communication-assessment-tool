@@ -11,7 +11,7 @@ export default function ClientLayout({
   const pathname = usePathname();
 
   // Pages that should NOT show sidebar
-  const authPages = ["/login"];
+ const authPages = ["/login", "/parent"];
 
   if (authPages.includes(pathname)) {
     return <>{children}</>;

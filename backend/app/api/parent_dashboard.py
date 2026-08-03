@@ -33,7 +33,20 @@ def get_parent_dashboard(parent_id: str):
         .execute()
     )
 
+    report = (
+        supabase.table("reports")
+        .select("*")
+        .eq("patient_id", patient_id)
+        .eq("status", "approved")
+        .order("created_at", desc=True)
+        .limit(1)
+        .execute()
+    )
+
+    
+
     return {
-        "parent": parent.data,
-        "patient": patient.data
-    }
+    "parent": parent.data,
+    "patient": patient.data,
+    "report": report.data[0] if report.data else None,
+}

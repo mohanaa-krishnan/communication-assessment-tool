@@ -4,9 +4,6 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 
-// Demo patient used for the Parent role — replace once parent-patient
-// linking exists. Matches the Test Patient we've been using throughout.
-
 
 export default function LoginPage() {
   const router = useRouter();
@@ -122,9 +119,7 @@ export default function LoginPage() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-slate-400 mt-4">
-          Demo build — credentials are not verified yet.
-        </p>
+       
       </div>
     </div>
   );

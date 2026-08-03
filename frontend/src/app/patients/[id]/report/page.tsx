@@ -6,9 +6,11 @@ import { useRouter } from "next/navigation";
 import { getPatient, getPatientAssessments, getAssessment, approveAssessment } from "@/lib/api";
 import { Patient, BehaviourScore, Assessment, BehaviourResult } from "@/types";
 import {
-  generateMockReport,
-  ReportContent,
-} from "@/lib/generate-mock-report";
+  generateReport,
+  getReport,
+  updateReport,
+  approveReport,
+} from "@/lib/api";
 
 interface DiffRow {
   behaviour: string;
@@ -28,7 +30,7 @@ export default function ReportPage({
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [report, setReport] = useState<ReportContent | null>(null);
+  const [report, setReport] = useState<any>(null);
   const [approved, setApproved] = useState(false);
   const [diffRows, setDiffRows] = useState<DiffRow[]>([]);
   const [previousAssessment, setPreviousAssessment] = useState<Assessment | null>(null);
@@ -39,10 +41,33 @@ export default function ReportPage({
         const p = await getPatient(id);
         setPatient(p);
 
-        const raw = sessionStorage.getItem(`cat-scores-${id}`);
-        const currentScores: BehaviourScore[] = raw ? JSON.parse(raw) : [];
-        setReport(generateMockReport(p.name, currentScores));
+        const assessmentId = sessionStorage.getItem(
+  `cat-assessment-id-${id}`
+);
 
+if (!assessmentId) {
+  throw new Error("Assessment not found");
+}
+
+let reportData;
+
+try {
+  reportData = await getReport(assessmentId);
+} catch {
+  reportData = await generateReport({
+    assessment_id: assessmentId,
+    patient_id: id,
+    therapist_id: "4b3ef53f-b585-4652-adb7-0e6fa7a2ac5d",
+  });
+}
+
+setReport(reportData);
+console.log(reportData);
+const raw = sessionStorage.getItem(`cat-scores-${id}`);
+
+const currentScores: BehaviourScore[] = raw
+  ? JSON.parse(raw)
+  : [];
         const currentAssessmentId = sessionStorage.getItem(`cat-assessment-id-${id}`);
         const allAssessments = await getPatientAssessments(id);
         const previousApproved = allAssessments
@@ -83,22 +108,34 @@ export default function ReportPage({
     load();
   }, [id]);
 
-  async function handleApprove() {
-    const assessmentId = sessionStorage.getItem(`cat-assessment-id-${id}`);
-    if (!assessmentId) {
-      setError("No assessment found to approve. Please redo the assessment.");
-      return;
-    }
-    try {
-      await approveAssessment(assessmentId);
-      setApproved(true);
-      setTimeout(() => {
-        router.push(`/patients/${id}/profile`);
-      }, 700);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Something went wrong.");
-    }
-  }
+async function handleApprove() {
+  if (!report) return;
+
+ try {
+  await updateReport(report.id, {
+    therapist_report: report.therapist_report,
+    recommendations: report.recommendations,
+    parent_summary: report.parent_summary,
+  });
+
+ await approveReport(report.id);
+
+setApproved(true);
+
+setTimeout(() => {
+  router.push(`/patients/${id}/profile`);
+}, 700);
+} catch (err) {
+  console.log(err);
+  console.log(JSON.stringify(err, null, 2));
+
+  setError(
+    err instanceof Error
+      ? err.message
+      : JSON.stringify(err)
+  );
+}
+}
 
   if (loading) return <p className="text-slate-500">Loading...</p>;
   if (error || !patient || !report)
@@ -186,9 +223,9 @@ export default function ReportPage({
             Clinical Impression
           </label>
           <textarea
-            value={report.clinicalImpression}
+            value={report.therapist_report}
             onChange={(e) =>
-              setReport({ ...report, clinicalImpression: e.target.value })
+              setReport({ ...report, therapist_report: e.target.value })
             }
             rows={4}
             className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -214,9 +251,9 @@ export default function ReportPage({
             Parent-Friendly Summary
           </label>
           <textarea
-            value={report.parentSummary}
+            value={report.parent_summary ?? ""}
             onChange={(e) =>
-              setReport({ ...report, parentSummary: e.target.value })
+              setReport({ ...report, parent_summary: e.target.value })
             }
             rows={4}
             className="w-full border border-slate-200 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"

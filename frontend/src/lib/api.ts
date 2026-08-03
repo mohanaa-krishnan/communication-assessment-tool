@@ -376,8 +376,52 @@ export interface ParentDashboard {
   };
 }
 
-export async function getParentDashboard(parentId: string) {
-  return request<ParentDashboard>(
-    `/parent/dashboard/${parentId}`
-  );
+export async function getParentDashboard(authUserId: string) {
+    return request<ParentDashboard>(
+      `/parents/dashboard?auth_user_id=${authUserId}`
+    );
+  }
+  export interface Report {
+  id: string;
+  assessment_id: string;
+  patient_id: string;
+  therapist_id: string;
+  ai_report: string;
+  therapist_report: string;
+  status: string;
+}
+
+export async function generateReport(data: {
+  assessment_id: string;
+  patient_id: string;
+  therapist_id: string;
+}) {
+  return request<Report>("/reports/generate", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function getReport(assessmentId: string) {
+  return request<Report>(`/reports/${assessmentId}`);
+}
+
+export async function updateReport(
+  reportId: string,
+  data: {
+    therapist_report: string;
+    recommendations: string;
+    parent_summary: string;
+  }
+) {
+  return request<Report>(`/reports/${reportId}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function approveReport(reportId: string) {
+  return request<Report>(`/reports/${reportId}/approve`, {
+    method: "PATCH",
+  });
 }
