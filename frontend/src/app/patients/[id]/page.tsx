@@ -205,35 +205,54 @@ export default function PatientPage({
           </button>
         </div>
       </div>
+<div className="mt-8 bg-white border rounded-lg p-5">
+  <h2 className="text-xl font-semibold mb-4">Assessment History</h2>
 
-      <div className="mt-8 bg-white border rounded-lg p-5">
-        <h2 className="text-xl font-semibold mb-4">Assessment History</h2>
-        {assessments.length === 0 ? (
-          <p className="text-sm text-slate-500">No assessments yet.</p>
-        ) : (
-          <div className="divide-y divide-slate-100">
-            {assessments.map((a) => (
-              <div
-                key={a.id}
-                className="flex items-center justify-between py-3"
-              >
-                <p className="font-medium text-slate-900">
-                  {a.assessmentDate}
-                </p>
-                <span
-                  className={`text-xs font-medium px-2 py-1 rounded-full ${
-                    a.status === "approved"
-                      ? "bg-emerald-100 text-emerald-700"
-                      : "bg-amber-100 text-amber-700"
-                  }`}
-                >
-                  {a.status}
-                </span>
-              </div>
-            ))}
+  {assessments.length === 0 ? (
+    <p className="text-sm text-slate-500">No assessments yet.</p>
+  ) : (
+    <div className="divide-y divide-slate-100">
+      {assessments.map((a) => (
+        <div
+          key={a.id}
+          className="flex items-center justify-between py-4"
+        >
+          <div>
+            <p className="font-medium text-slate-900">
+              {a.assessmentDate}
+            </p>
+
+            <span
+              className={`inline-block mt-1 text-xs font-medium px-2 py-1 rounded-full ${
+                a.status === "approved"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-amber-100 text-amber-700"
+              }`}
+            >
+              {a.status}
+            </span>
           </div>
-        )}
-      </div>
+
+          {a.status === "draft" ? (
+            <Link
+              href={`/patients/${id}/report?assessment=${a.id}`}
+              className="text-blue-600 hover:underline font-medium"
+            >
+              Continue Report →
+            </Link>
+          ) : (
+            <Link
+              href={`/patients/${id}/profile`}
+              className="text-emerald-600 hover:underline font-medium"
+            >
+              View Profile →
+            </Link>
+          )}
+        </div>
+      ))}
+    </div>
+  )}
+</div>
     </div>
   );
 }

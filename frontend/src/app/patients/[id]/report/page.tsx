@@ -11,6 +11,7 @@ import {
   updateReport,
   approveReport,
 } from "@/lib/api";
+import { useSearchParams } from "next/navigation";
 
 interface DiffRow {
   behaviour: string;
@@ -25,8 +26,8 @@ export default function ReportPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
-  const router = useRouter();
-
+const router = useRouter();
+const searchParams = useSearchParams();
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -41,9 +42,9 @@ export default function ReportPage({
         const p = await getPatient(id);
         setPatient(p);
 
-        const assessmentId = sessionStorage.getItem(
-  `cat-assessment-id-${id}`
-);
+        const assessmentId =
+  searchParams.get("assessment") ??
+  sessionStorage.getItem(`cat-assessment-id-${id}`);
 
 if (!assessmentId) {
   throw new Error("Assessment not found");
@@ -68,7 +69,7 @@ const raw = sessionStorage.getItem(`cat-scores-${id}`);
 const currentScores: BehaviourScore[] = raw
   ? JSON.parse(raw)
   : [];
-        const currentAssessmentId = sessionStorage.getItem(`cat-assessment-id-${id}`);
+        const currentAssessmentId = assessmentId;
         const allAssessments = await getPatientAssessments(id);
         const previousApproved = allAssessments
           .filter((a) => a.status === "approved" && a.id !== currentAssessmentId)
@@ -111,30 +112,43 @@ const currentScores: BehaviourScore[] = raw
 async function handleApprove() {
   if (!report) return;
 
- try {
-  await updateReport(report.id, {
-    therapist_report: report.therapist_report,
-    recommendations: report.recommendations,
-    parent_summary: report.parent_summary,
-  });
+  try {
+    // Save therapist edits
+    await updateReport(report.id, {
+      therapist_report: report.therapist_report,
+      recommendations: report.recommendations,
+      parent_summary: report.parent_summary,
+    });
 
- await approveReport(report.id);
+    // Approve the report
+    await approveReport(report.id);
+setReport({
+  ...report,
+  status: "approved",
+});
+    // Approve the assessment
+   const assessmentId =
+  searchParams.get("assessment") ??
+  sessionStorage.getItem(`cat-assessment-id-${id}`);
 
-setApproved(true);
+    if (assessmentId) {
+      await approveAssessment(assessmentId);
+    }
 
-setTimeout(() => {
-  router.push(`/patients/${id}/profile`);
-}, 700);
-} catch (err) {
-  console.log(err);
-  console.log(JSON.stringify(err, null, 2));
+    setApproved(true);
 
-  setError(
-    err instanceof Error
-      ? err.message
-      : JSON.stringify(err)
-  );
-}
+    setTimeout(() => {
+      router.push(`/patients/${id}/profile`);
+    }, 700);
+
+  } catch (err) {
+    console.log(err);
+    setError(
+      err instanceof Error
+        ? err.message
+        : JSON.stringify(err)
+    );
+  }
 }
 
   if (loading) return <p className="text-slate-500">Loading...</p>;
@@ -171,9 +185,17 @@ setTimeout(() => {
         <h1 className="text-2xl font-bold text-slate-900">
           AI-Generated Report
         </h1>
-        <span className="text-xs font-medium px-2 py-1 rounded-full bg-amber-100 text-amber-700">
-          Draft — pending your review
-        </span>
+      <span
+  className={`text-xs px-2 py-1 rounded-full ${
+    report.status === "approved"
+      ? "bg-green-100 text-green-700"
+      : "bg-amber-100 text-amber-700"
+  }`}
+>
+  {report.status === "approved"
+    ? "Approved"
+    : "Draft — pending your review"}
+</span>
       </div>
       <p className="text-slate-500 mt-1">
         Review and edit before approving. Nothing is saved until you approve.
@@ -264,11 +286,23 @@ setTimeout(() => {
       <div className="mt-6 flex items-center gap-3">
         <button
           onClick={handleApprove}
-          disabled={approved}
+        disabled={approved || report.status === "approved"}
           className="bg-emerald-600 text-white text-sm font-medium px-5 py-2.5 rounded-md hover:bg-emerald-700 disabled:opacity-50"
         >
-          {approved ? "Approved ✓" : "Approve Report"}
+         {report.status === "approved"
+  ? "Already Approved"
+  : approved
+  ? "Approved ✓"
+  : "Approve Report"}
         </button>
+        <a
+  href={`http://127.0.0.1:8000/reports/${report.id}/pdf`}
+  target="_blank"
+  rel="noopener noreferrer"
+  className="bg-slate-700 text-white text-sm font-medium px-5 py-2.5 rounded-md hover:bg-slate-800"
+>
+  Download PDF
+</a>
         <p className="text-sm text-slate-500">
           Therapist approval is mandatory — this button is the only way a
           report gets saved.

@@ -4,6 +4,7 @@ from app.api import patients, assessments,parents
 from app.api.ai_reports import router as ai_reports_router
 from fastapi.middleware.cors import CORSMiddleware
 from app.api import parent_dashboard
+from app.api.pdf import router as pdf_router
 from app.api import report
 app = FastAPI(
     title="Communication Assessment Tool API",
@@ -16,6 +17,7 @@ app.include_router(ai_reports_router)
 app.include_router(parents.router)
 app.include_router(parent_dashboard.router)
 app.include_router(report.router)
+app.include_router(pdf_router)
 @app.get("/")
 def root():
     return {
