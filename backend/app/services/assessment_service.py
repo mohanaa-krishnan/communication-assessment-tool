@@ -57,11 +57,15 @@ def get_assessment(assessment_id: str):
 def list_patient_assessments(patient_id: str):
     response = (
         supabase.table("assessments")
-        .select("*")
+        .select("""
+            *,
+            reports(id,status)
+        """)
         .eq("patient_id", patient_id)
         .order("assessment_date", desc=True)
         .execute()
     )
+
     return response.data
 def get_communication_profile(patient_id: str):
     patient_response = (

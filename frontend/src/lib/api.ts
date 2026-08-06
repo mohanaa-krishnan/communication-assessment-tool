@@ -405,6 +405,17 @@ export async function generateReport(data: {
 export async function getReport(assessmentId: string) {
   return request<Report>(`/reports/${assessmentId}`);
 }
+export async function getReportById(reportId: string) {
+  const res = await fetch(
+    `${API_BASE_URL}/reports/id/${reportId}`
+  );
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch report");
+  }
+
+  return res.json();
+}
 
 export async function updateReport(
   reportId: string,

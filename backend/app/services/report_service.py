@@ -2,6 +2,18 @@ from app.database.supabase import supabase
 
 
 def generate_report(data: dict):
+    # Check whether a report already exists
+    existing = (
+        supabase.table("reports")
+        .select("*")
+        .eq("assessment_id", data["assessment_id"])
+        .limit(1)
+        .execute()
+    )
+
+    if existing.data:
+        return existing.data[0]
+
     response = (
         supabase.table("reports")
         .insert(data)

@@ -55,3 +55,6 @@ def update_report(report_id: str, report: ReportUpdate):
 @router.patch("/{report_id}/approve")
 def approve_report(report_id: str):
     return report_service.approve_report(report_id)
+@router.get("/id/{report_id}")
+def get_report_by_id(report_id: str):
+    return report_service.get_report_by_id(report_id)

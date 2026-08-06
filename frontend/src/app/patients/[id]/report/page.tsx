@@ -8,6 +8,7 @@ import { Patient, BehaviourScore, Assessment, BehaviourResult } from "@/types";
 import {
   generateReport,
   getReport,
+  getReportById,
   updateReport,
   approveReport,
 } from "@/lib/api";
@@ -28,6 +29,7 @@ export default function ReportPage({
   const { id } = use(params);
 const router = useRouter();
 const searchParams = useSearchParams();
+const reportId = searchParams.get("report");
   const [patient, setPatient] = useState<Patient | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -52,14 +54,18 @@ if (!assessmentId) {
 
 let reportData;
 
-try {
-  reportData = await getReport(assessmentId);
-} catch {
-  reportData = await generateReport({
-    assessment_id: assessmentId,
-    patient_id: id,
-    therapist_id: "4b3ef53f-b585-4652-adb7-0e6fa7a2ac5d",
-  });
+if (reportId) {
+  reportData = await getReportById(reportId);
+} else {
+  try {
+    reportData = await getReport(assessmentId);
+  } catch {
+    reportData = await generateReport({
+      assessment_id: assessmentId,
+      patient_id: id,
+      therapist_id: "4b3ef53f-b585-4652-adb7-0e6fa7a2ac5d",
+    });
+  }
 }
 
 setReport(reportData);
