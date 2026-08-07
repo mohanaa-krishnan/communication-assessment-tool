@@ -2,8 +2,13 @@ from app.database.supabase import supabase
 from app.schemas.patient import PatientCreate, PatientUpdate
 
 
-def list_patients():
-    response = supabase.table("patients").select("*").execute()
+def list_patients(therapist_id: str):
+    response = (
+        supabase.table("patients")
+        .select("*")
+        .eq("therapist_id", therapist_id)
+        .execute()
+    )
     return response.data
 
 
@@ -18,8 +23,10 @@ def get_patient(patient_id: str):
     return response.data
 
 
-def create_patient(patient: PatientCreate):
+def create_patient(patient: PatientCreate, therapist_id: str):
     payload = patient.model_dump(mode="json", exclude_none=True)
+    # Server-derived, always — never trust a therapist_id sent by the client.
+    payload["therapist_id"] = therapist_id
     response = supabase.table("patients").insert(payload).execute()
     return response.data[0]
 

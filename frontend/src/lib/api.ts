@@ -1,4 +1,5 @@
 import { Patient, Assessment, BehaviourScore } from "@/types";
+import { supabase } from "@/lib/supabase";
 
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
@@ -137,12 +138,28 @@ export class ApiError extends Error {
   }
 }
 
+async function getAuthHeaders(): Promise<Record<string, string>> {
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+
+  return session?.access_token
+    ? { Authorization: `Bearer ${session.access_token}` }
+    : {};
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const authHeaders = await getAuthHeaders();
+
   let res: Response;
   try {
     res = await fetch(`${API_BASE_URL}${path}`, {
-      headers: { "Content-Type": "application/json" },
       ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...authHeaders,
+        ...(options?.headers as Record<string, string> | undefined),
+      },
       cache: "no-store",
     });
   } catch {
@@ -344,20 +361,13 @@ export async function inviteParent(data: {
   patient_id: string;
   invited_by: string;
 }) {
-  const response = await fetch("http://127.0.0.1:8000/parents/", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(data),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail);
-  }
-
-  return response.json();
+  return request<{ message: string; temporary_password: string; parent: unknown }>(
+    "/parents/",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
 }
 export interface ParentDashboard {
   parent: {
@@ -401,20 +411,11 @@ export async function generateReport(data: {
     body: JSON.stringify(data),
   });
 }
-
 export async function getReport(assessmentId: string) {
-  return request<Report>(`/reports/${assessmentId}`);
+  return request<any>(`/reports/${assessmentId}`);
 }
 export async function getReportById(reportId: string) {
-  const res = await fetch(
-    `${API_BASE_URL}/reports/id/${reportId}`
-  );
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch report");
-  }
-
-  return res.json();
+  return request<Report>(`/reports/id/${reportId}`);
 }
 
 export async function updateReport(

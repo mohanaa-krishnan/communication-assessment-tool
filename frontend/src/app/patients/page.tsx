@@ -1,17 +1,23 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
-
 import { getPatients } from "@/lib/api";
+import { Patient } from "@/types";
 
+export default function PatientListPage() {
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-export default async function PatientListPage() {
-  let patients: Awaited<ReturnType<typeof getPatients>> = [];
-  let error: string | null = null;
-
-  try {
-    patients = await getPatients();
-  } catch (err) {
-    error = err instanceof Error ? err.message : "Something went wrong.";
-  }
+  useEffect(() => {
+    getPatients()
+      .then(setPatients)
+      .catch((err) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
+      .finally(() => setLoading(false));
+  }, []);
 
   return (
     <div className="max-w-5xl">
@@ -19,7 +25,11 @@ export default async function PatientListPage() {
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Patients</h1>
           <p className="text-slate-500 mt-1">
-            {error ? "—" : `${patients.length} patient(s) on record.`}
+            {loading
+              ? "Loading..."
+              : error
+              ? "—"
+              : `${patients.length} patient(s) on record.`}
           </p>
         </div>
         <Link
@@ -36,7 +46,7 @@ export default async function PatientListPage() {
         </div>
       )}
 
-      {!error && (
+      {!error && !loading && (
         <div className="mt-6 bg-white border border-slate-200 rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-500 text-left">
