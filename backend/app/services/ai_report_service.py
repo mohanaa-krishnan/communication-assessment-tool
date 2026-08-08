@@ -78,19 +78,37 @@ def generate_mock_report(data: AIReportRequest) -> dict:
     }
 
 
+import time
+
 def call_gemini(prompt: str) -> dict:
     """
     Calls the real Gemini API and parses the strict-JSON response into
-    the three expected fields. Falls back to a safe error-shaped dict
-    if parsing fails, so the API never crashes on a malformed response.
+    the three expected fields. Retries once on transient overload/rate
+    errors (common on the free tier) before giving up. Falls back to a
+    safe error-shaped dict if parsing fails, so the API never crashes
+    on a malformed response.
     """
     client = genai.Client(api_key=GEMINI_API_KEY)
 
-    response = client.models.generate_content(
-        model="gemini-flash-latest",
-        contents=prompt,
-    )
-    raw_text = response.text.strip()
+    last_error = None
+    for attempt in range(3):
+        try:
+            response = client.models.generate_content(
+                model="gemini-flash-latest",
+                contents=prompt,
+            )
+            raw_text = response.text.strip()
+            break
+        except Exception as e:
+            last_error = e
+            if attempt < 2:
+                time.sleep(2)
+    else:
+        return {
+            "clinical_impression": "AI service is temporarily busy. Please try generating the report again in a moment.",
+            "recommendations": "AI service is temporarily busy. Please try generating the report again in a moment.",
+            "parent_summary": "AI service is temporarily busy. Please try generating the report again in a moment.",
+        }
 
     # Defensive cleanup in case Gemini wraps the JSON in code fences anyway
     if raw_text.startswith("```"):
