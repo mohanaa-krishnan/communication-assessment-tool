@@ -63,7 +63,7 @@ def get_current_user(
         .maybe_single()
         .execute()
     )
-    if therapist.data:
+    if therapist and therapist.data:
         return CurrentUser(
             auth_user_id=auth_user_id,
             email=email,
@@ -78,7 +78,7 @@ def get_current_user(
         .maybe_single()
         .execute()
     )
-    if parent.data:
+    if parent and parent.data:
         return CurrentUser(
             auth_user_id=auth_user_id,
             email=email,

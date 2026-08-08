@@ -1,7 +1,8 @@
-from fastapi import APIRouter
+from fastapi import APIRouter,Depends
 from app.database.supabase import supabase
 from pydantic import BaseModel
 from fastapi import HTTPException
+from app.auth import require_parent, CurrentUser
 import secrets
 router = APIRouter(
     prefix="/parents",
@@ -78,11 +79,11 @@ def create_parent(parent: ParentCreate):
         "parent": response.data
     }
 @router.get("/dashboard")
-def get_parent_dashboard(auth_user_id: str):
+def get_parent_dashboard(user: CurrentUser = Depends(require_parent)):
     parent_response = (
         supabase.table("parents")
         .select("*")
-        .eq("auth_user_id", auth_user_id)
+        .eq("auth_user_id", user.auth_user_id)
         .single()
         .execute()
     )

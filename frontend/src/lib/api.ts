@@ -386,10 +386,8 @@ export interface ParentDashboard {
   };
 }
 
-export async function getParentDashboard(authUserId: string) {
-    return request<ParentDashboard>(
-      `/parents/dashboard?auth_user_id=${authUserId}`
-    );
+export async function getParentDashboard() {
+    return request<ParentDashboard>(`/parents/dashboard`);
   }
   export interface Report {
   id: string;

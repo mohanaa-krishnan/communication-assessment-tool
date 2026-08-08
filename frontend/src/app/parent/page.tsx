@@ -22,7 +22,7 @@ export default function ParentDashboard() {
       }
 
       try {
-        const dashboard = await getParentDashboard(user.id);
+        const dashboard = await getParentDashboard();
         setData(dashboard);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Something went wrong.");
