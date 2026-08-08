@@ -117,7 +117,6 @@ const currentScores: BehaviourScore[] = raw
 
 async function handleApprove() {
   if (!report) return;
-
   try {
     // Save therapist edits
     await updateReport(report.id, {
@@ -125,21 +124,15 @@ async function handleApprove() {
       recommendations: report.recommendations,
       parent_summary: report.parent_summary,
     });
-
     // Approve the report
     await approveReport(report.id);
-setReport({
-  ...report,
-  status: "approved",
-});
-    // Approve the assessment
-   const assessmentId =
-  searchParams.get("assessment") ??
-  sessionStorage.getItem(`cat-assessment-id-${id}`);
-
-    if (assessmentId) {
-      await approveAssessment(assessmentId);
-    }
+    setReport({
+      ...report,
+      status: "approved",
+    });
+    // Approve the assessment — use the id already on the loaded report,
+    // not a re-derived value that can silently come back empty.
+    await approveAssessment(report.assessment_id);
 
     setApproved(true);
 
