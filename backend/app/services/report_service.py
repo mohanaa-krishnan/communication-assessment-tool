@@ -28,11 +28,21 @@ def get_report(assessment_id: str):
         supabase.table("reports")
         .select("*")
         .eq("assessment_id", assessment_id)
-        .single()
+        .limit(1)
         .execute()
     )
+    return response.data[0] if response.data else None
 
-    return response.data
+
+def get_report_by_id(report_id: str):
+    response = (
+        supabase.table("reports")
+        .select("*")
+        .eq("id", report_id)
+        .limit(1)
+        .execute()
+    )
+    return response.data[0] if response.data else None
 
 
 def update_report(report_id: str, payload: dict):
@@ -42,8 +52,7 @@ def update_report(report_id: str, payload: dict):
         .eq("id", report_id)
         .execute()
     )
-
-    return response.data[0]
+    return response.data[0] if response.data else None
 
 
 def approve_report(report_id: str):
@@ -53,5 +62,4 @@ def approve_report(report_id: str):
         .eq("id", report_id)
         .execute()
     )
-
-    return response.data[0]
+    return response.data[0] if response.data else None

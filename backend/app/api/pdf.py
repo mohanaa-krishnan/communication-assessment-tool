@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import FileResponse
 from reportlab.platypus import (
     SimpleDocTemplate,
@@ -8,6 +8,7 @@ from reportlab.platypus import (
 from reportlab.lib.styles import getSampleStyleSheet
 
 from app.database.supabase import supabase
+from app.auth import require_therapist, ensure_patient_access, CurrentUser
 
 import tempfile
 
@@ -18,7 +19,10 @@ router = APIRouter(
 
 
 @router.get("/{report_id}/pdf")
-def download_pdf(report_id: str):
+def download_pdf(
+    report_id: str,
+    user: CurrentUser = Depends(require_therapist),
+):
 
     report = (
         supabase.table("reports")
@@ -30,6 +34,8 @@ def download_pdf(report_id: str):
 
     if not report.data:
         raise HTTPException(404, "Report not found")
+
+    ensure_patient_access(report.data["patient_id"], user)
 
     patient = (
         supabase.table("patients")
